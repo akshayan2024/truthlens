@@ -1,0 +1,25 @@
+# Local agent and editor settings
+.claude/
+.codex/
+.vscode/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+
+# Chrome extension packaging artifacts
+*.crx
+*.zip
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db

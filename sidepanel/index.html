@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruthLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── MASTHEAD ── -->
+    <header id="header">
+      <div class="masthead">
+        <div class="logo">
+          <span class="logo-mark" aria-hidden="true">◈</span>
+          <span class="logo-block">
+            <span class="logo-text">TruthLens</span>
+            <span class="logo-kicker">Field Notes · Fact Analysis</span>
+          </span>
+        </div>
+        <div class="header-actions">
+          <button id="refresh-btn" class="icon-btn" aria-label="Re-run fact check" title="Re-run analysis">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+          </button>
+          <button id="close-btn" class="icon-btn" aria-label="Close fact checker" title="Close">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <line x1="1" y1="1" x2="13" y2="13"/>
+              <line x1="13" y1="1" x2="1" y2="13"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="ref-line">
+        <span class="ref-tag">Ref.</span>
+        <span id="video-title" class="video-title" title="">—</span>
+        <span id="status-badge" class="status-badge status-idle">Ready</span>
+      </div>
+    </header>
+
+    <!-- ── INDEX / FILTER (counts live here — names appear once) ── -->
+    <nav id="filter-tabs" class="filter-tabs" hidden role="tablist" aria-label="Filter claims by category">
+      <button class="tab active" data-filter="all" role="tab" aria-selected="true">
+        <span class="tab-name">All</span><span class="tab-count" id="ct-all">0</span>
+      </button>
+      <button class="tab" data-filter="verified" role="tab" aria-selected="false">
+        <span class="tab-name">Fact</span><span class="tab-count" id="ct-verified">0</span>
+      </button>
+      <button class="tab" data-filter="opinion" role="tab" aria-selected="false">
+        <span class="tab-name">Opinion</span><span class="tab-count" id="ct-opinion">0</span>
+      </button>
+      <button class="tab" data-filter="unverified" role="tab" aria-selected="false">
+        <span class="tab-name">Unverified</span><span class="tab-count" id="ct-unverified">0</span>
+      </button>
+      <button class="tab" data-filter="gas" role="tab" aria-selected="false">
+        <span class="tab-name">Gas</span><span class="tab-count" id="ct-gas">0</span>
+      </button>
+    </nav>
+
+    <!-- ── CREDIBILITY METER ── -->
+    <div id="credibility-meter" class="cred-meter" hidden>
+      <div class="cred-track">
+        <div id="cred-fill" class="cred-fill"></div>
+        <div id="cred-needle" class="cred-needle"></div>
+      </div>
+      <div class="cred-labels">
+        <span class="cred-pole cred-pole--left">Hyped</span>
+        <span id="cred-verdict" class="cred-verdict">—</span>
+        <span class="cred-pole cred-pole--right">Helpful</span>
+      </div>
+    </div>
+
+    <!-- ── PLATE / CONTENT ── -->
+    <main id="content" class="content" role="main">
+
+      <!-- Idle -->
+      <div id="state-idle" class="state-screen" role="status">
+        <div class="state-glyph" aria-hidden="true">◈</div>
+        <p class="state-title">Awaiting analysis</p>
+        <p class="state-sub">
+          Open any YouTube video and select
+          <strong>Fact Check</strong> to compile a
+          field record of its claims.
+        </p>
+      </div>
+
+      <!-- Loading -->
+      <div id="state-loading" class="state-screen hidden" role="status" aria-live="polite">
+        <div class="skeleton-stack" aria-hidden="true">
+          <div class="skel"></div>
+          <div class="skel"></div>
+          <div class="skel skel-short"></div>
+        </div>
+        <p class="loading-label">
+          Compiling transcript<span class="blink-dots" aria-hidden="true">...</span>
+        </p>
+      </div>
+
+      <!-- Claims ledger -->
+      <div id="claims-list" class="claims-list hidden" role="feed" aria-label="Fact check results"></div>
+
+      <!-- Error -->
+      <div id="state-error" class="state-screen hidden" role="alert">
+        <div class="state-glyph error" aria-hidden="true">⊘</div>
+        <p class="state-title error">Analysis halted</p>
+        <p id="error-msg" class="state-sub error"></p>
+      </div>
+
+    </main>
+
+    <!-- ── COLOPHON ── -->
+    <footer id="footer" class="footer">
+      <p id="summary-text" class="summary hidden"></p>
+      <p class="credit">TruthLens · analysis by Claude</p>
+    </footer>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

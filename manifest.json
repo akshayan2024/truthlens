@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "TruthLens — YouTube Fact Checker",
+  "version": "1.0.0",
+  "description": "Real-time AI fact-checking for YouTube videos. Categorizes claims into Verified Facts, Opinions, Unverified, and Gas.",
+
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://api.supadata.ai/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "TruthLens — Settings"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sidepanel/index.html",
+        "sidepanel/style.css",
+        "sidepanel/script.js"
+      ],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ],
+
+  "_icons_note": "Generate PNGs: open icons/generate-icons.html in Chrome, download the 3 files, then restore this field"
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="#080808"/>
+
+  <!-- Red left accent -->
+  <rect x="0" y="0" width="10" height="128" rx="4" fill="#ff0000"/>
+
+  <!-- Magnifying glass circle -->
+  <circle cx="56" cy="54" r="26" fill="none" stroke="#e8e8e8" stroke-width="8"/>
+
+  <!-- Magnifying glass handle -->
+  <line x1="74" y1="72" x2="96" y2="96" stroke="#e8e8e8" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Check mark inside the lens -->
+  <polyline points="43,54 52,63 70,45" fill="none" stroke="#ff0000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

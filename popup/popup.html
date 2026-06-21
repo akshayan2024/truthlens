@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruthLens Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <span class="logo-mark" aria-hidden="true">◈</span>
+      <span class="logo-text">TRUTHLENS</span>
+    </header>
+
+    <main>
+
+      <!-- Provider selector -->
+      <div class="field">
+        <label>AI Provider</label>
+        <div class="provider-tabs" role="tablist" aria-label="Select AI provider">
+          <button class="p-tab active" data-provider="deepseek"  role="tab" aria-selected="true">DeepSeek</button>
+          <button class="p-tab"        data-provider="anthropic" role="tab" aria-selected="false">Anthropic</button>
+          <button class="p-tab"        data-provider="openai"    role="tab" aria-selected="false">OpenAI</button>
+        </div>
+      </div>
+
+      <!-- Model selector -->
+      <div class="field">
+        <label for="model-select">Model</label>
+        <select id="model-select"></select>
+      </div>
+
+      <!-- API Key -->
+      <div class="field">
+        <label for="api-key">API Key</label>
+        <div class="input-row">
+          <input
+            type="password"
+            id="api-key"
+            placeholder="sk-..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button id="toggle-vis" class="vis-btn" aria-label="Toggle key visibility" title="Show/hide key">
+            <svg id="icon-show" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="icon-hide" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <p class="hint">Get your key at <span id="key-hint-url"></span></p>
+      </div>
+
+      <button id="save-btn" class="save-btn">Save Settings</button>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <div class="section-divider"></div>
+
+      <!-- Supadata transcript key -->
+      <div class="field">
+        <label class="section-heading">TRANSCRIPT SOURCE</label>
+        <label for="supadata-key">Supadata API Key</label>
+        <div class="input-row">
+          <input
+            type="password"
+            id="supadata-key"
+            placeholder="supa_..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button id="toggle-supa" class="vis-btn" aria-label="Toggle Supadata key visibility">
+            <svg id="supa-icon-show" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="supa-icon-hide" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <p class="hint">Free tier at <span class="hint-url">supadata.ai</span></p>
+      </div>
+
+      <button id="save-supa-btn" class="save-btn supa-btn">Save Transcript Key</button>
+      <div id="supa-status" class="status" aria-live="polite"></div>
+
+    </main>
+
+    <footer>
+      <p class="instructions">
+        Navigate to any YouTube video, then click
+        <strong>Fact Check</strong> in the video controls.
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

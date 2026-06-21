@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Generate TruthLens Icons</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 32px; }
+    h1   { color: #ff0000; margin-bottom: 16px; }
+    p    { color: #888; margin-bottom: 24px; font-size: 13px; }
+    .row { display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 24px; }
+    canvas { border: 1px solid #333; border-radius: 4px; image-rendering: pixelated; }
+    label  { display: block; font-size: 11px; color: #666; margin-bottom: 6px; }
+    button {
+      display: block; margin-top: 24px; padding: 10px 20px;
+      background: rgba(255,0,0,0.15); border: 1px solid rgba(255,0,0,0.35);
+      color: #ff5555; cursor: pointer; font-family: monospace; font-size: 12px;
+      letter-spacing: 0.1em; border-radius: 4px;
+    }
+    button:hover { background: rgba(255,0,0,0.25); }
+  </style>
+</head>
+<body>
+  <h1>◈ TruthLens — Icon Generator</h1>
+  <p>Open this file in Chrome. Click "Download All PNGs" to save icon16.png, icon48.png, icon128.png into this folder.</p>
+
+  <div class="row" id="previews"></div>
+
+  <button id="dl">Download All PNGs</button>
+
+  <script>
+    const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+      <rect width="128" height="128" rx="20" fill="#080808"/>
+      <rect x="0" y="0" width="10" height="128" rx="4" fill="#ff0000"/>
+      <circle cx="56" cy="54" r="26" fill="none" stroke="#e8e8e8" stroke-width="8"/>
+      <line x1="74" y1="72" x2="96" y2="96" stroke="#e8e8e8" stroke-width="9" stroke-linecap="round"/>
+      <polyline points="43,54 52,63 70,45" fill="none" stroke="#ff0000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+    const SIZES = [16, 48, 128];
+    const blob  = new Blob([SVG], { type: 'image/svg+xml' });
+    const url   = URL.createObjectURL(blob);
+
+    const canvases = {};
+
+    SIZES.forEach(size => {
+      const wrap = document.createElement('div');
+      const lbl  = document.createElement('label');
+      lbl.textContent = `icon${size}.png (${size}×${size})`;
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = size;
+      canvas.height = size;
+      canvas.style.width  = `${Math.max(size, 64)}px`;
+      canvas.style.height = `${Math.max(size, 64)}px`;
+
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+      };
+      img.src = url;
+
+      canvases[size] = canvas;
+      wrap.appendChild(lbl);
+      wrap.appendChild(canvas);
+      document.getElementById('previews').appendChild(wrap);
+    });
+
+    document.getElementById('dl').addEventListener('click', () => {
+      SIZES.forEach(size => {
+        const a = document.createElement('a');
+        a.download = `icon${size}.png`;
+        a.href = canvases[size].toDataURL('image/png');
+        a.click();
+      });
+    });
+  </script>
+</body>
+</html>
