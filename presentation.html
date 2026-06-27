@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TruthLens — How I Built It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --paper:     #f5f3ee;
+  --paper-up:  #ffffff;
+  --paper-dn:  #ebe8e0;
+  --ink:       #111111;
+  --ink-2:     #444444;
+  --ink-3:     #888888;
+  --rule:      rgba(0,0,0,0.10);
+  --rule-2:    rgba(0,0,0,0.22);
+  --red:       #cc0000;
+  --fact:      #4d6a3a;
+  --fact-w:    #e8efe3;
+  --opinion:   #a06d12;
+  --opinion-w: #f5ead6;
+  --unv:       #5c6472;
+  --unv-w:     #e8eaed;
+  --gas:       #9c3b2e;
+  --gas-w:     #f2e4e2;
+}
+
+html, body { width:100%; height:100%; background:#1a1a1a; overflow:hidden; }
+
+/* ── DECK ── */
+.deck {
+  width:100vw; height:100vh;
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: var(--ink);
+  position: relative;
+}
+
+/* ── SLIDES ── */
+.slide {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--paper);
+  padding: 56px 80px 72px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity .38s ease, transform .38s ease;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
+}
+.slide.active    { opacity:1; transform:translateY(0); pointer-events:all; }
+.slide.exit      { opacity:0; transform:translateY(-14px); transition-duration:.24s; }
+
+/* ── REVEAL SYSTEM ── */
+[data-step] { opacity:0; transform:translateY(12px); transition: opacity .35s ease, transform .35s ease; }
+[data-step].revealed { opacity:1; transform:translateY(0); }
+
+/* ── DARK SLIDES ── */
+.slide.dark { background:#111111; }
+.slide.dark h1,
+.slide.dark h2,
+.slide.dark p { color: var(--paper); }
+.slide.dark .label { color: rgba(245,243,238,.38); }
+.slide.dark .rule  { background: rgba(245,243,238,.2); }
+
+/* ── LASER POINTER ── */
+html.laser * { cursor:none !important; }
+#laser {
+  position: fixed;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(204,0,0,.55);
+  box-shadow: 0 0 0 3px rgba(204,0,0,.2), 0 0 16px rgba(204,0,0,.35);
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  left: var(--mx,50vw);
+  top: var(--my,50vh);
+}
+html.laser #laser { display: block; }
+
+/* ── NAV DOTS ── */
+#dots {
+  position: fixed;
+  bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center;
+  z-index: 100;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  border: 1px solid rgba(255,255,255,.3);
+  cursor: pointer;
+  transition: background .2s, transform .2s;
+  position: relative;
+}
+.dot:hover { transform: scale(1.4); }
+.dot.active { background: var(--red); border-color: var(--red); transform: scale(1.2); }
+.dot-label {
+  position: absolute;
+  bottom: 16px; left: 50%; transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px; letter-spacing: .06em;
+  background: #111; color: #f5f3ee;
+  padding: 3px 8px; border-radius: 3px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s;
+}
+.dot:hover .dot-label { opacity: 1; }
+
+/* ── SLIDE COUNTER ── */
+#counter {
+  position: fixed;
+  bottom: 22px; right: 28px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: rgba(255,255,255,.3);
+  z-index: 100; letter-spacing: .08em;
+}
+
+/* ── PROGRESS BAR ── */
+#bar {
+  position: fixed; top:0; left:0;
+  height: 2.5px; background: var(--red);
+  transition: width .38s ease;
+  z-index: 100;
+}
+
+/* ── ENLARGE OVERLAY ── */
+#enlarge-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  cursor: pointer;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+#enlarge-overlay.open { opacity:1; pointer-events:all; }
+#enlarge-inner {
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 32px;
+  max-width: 90vw; max-height: 88vh;
+  overflow: auto;
+}
+
+/* ── TYPOGRAPHY ── */
+.label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 18px; align-self: flex-start;
+}
+h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(44px,6.5vw,76px);
+  font-weight: 600; line-height: 1.06;
+  letter-spacing: -.025em;
+}
+h2 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(28px,4vw,48px);
+  font-weight: 500; line-height: 1.13;
+  letter-spacing: -.018em;
+  margin-bottom: 24px;
+}
+h3 {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--ink); margin-bottom: 5px;
+}
+p {
+  font-size: 16px; line-height: 1.7;
+  color: var(--ink-2); max-width: 620px;
+}
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+.rule { width:40px; height:2px; background:var(--rule-2); margin: 18px 0; }
+.rule.left { align-self:flex-start; }
+
+/* ── TAGS ── */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .05em;
+  padding: 3px 9px; border-radius: 99px;
+}
+.tag-fact { background:var(--fact-w); color:var(--fact); }
+.tag-gas  { background:var(--gas-w);  color:var(--gas);  }
+.tag-unv  { background:var(--unv-w);  color:var(--unv);  }
+.tag-op   { background:var(--opinion-w); color:var(--opinion); }
+.tag-red  { background:#fce8e8; color:var(--red); }
+
+/* ── CARDS ── */
+.card {
+  background: var(--paper-up);
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.card-fact { border-left: 3px solid var(--fact); }
+.card-gas  { border-left: 3px solid var(--gas);  }
+.card-unv  { border-left: 3px solid var(--unv);  }
+.card-red  { border-left: 3px solid var(--red);  }
+
+/* ── GRID ── */
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; width:100%; max-width:820px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; width:100%; max-width:900px; }
+
+/* ── LAYOUT ── */
+.col { display:flex; flex-direction:column; }
+.row { display:flex; align-items:center; }
+.w   { width:100%; max-width:820px; }
+.center { align-items:center; text-align:center; }
+
+/* ── FEAT CARDS ── */
+.feat {
+  background:var(--paper-up); border:1px solid var(--rule);
+  border-radius:7px; padding:18px 16px;
+}
+.feat-icon { font-size:22px; margin-bottom:8px; }
+.feat-h    { font-family:'IBM Plex Sans',sans-serif; font-size:14px; font-weight:600; color:var(--ink); margin-bottom:5px; }
+.feat-p    { font-size:12.5px; color:var(--ink-2); line-height:1.55; }
+
+/* ── STEP LIST ── */
+.steps { display:flex; flex-direction:column; gap:12px; width:100%; max-width:660px; }
+.step  {
+  display:flex; gap:16px; align-items:flex-start;
+  padding:14px 18px;
+  background:var(--paper-up); border:1px solid var(--rule);
+  border-radius:7px;
+}
+.step-n { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-3); min-width:22px; padding-top:2px; }
+.step-h { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:3px; }
+.step-p { font-size:13px; color:var(--ink-2); line-height:1.5; }
+
+/* ── CHALLENGE ── */
+.chal { background:var(--paper-up); border:1px solid var(--rule); border-radius:7px; padding:15px 18px; }
+.chal-err { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--gas); margin-bottom:5px; letter-spacing:.06em; }
+.chal-ok  { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--fact); margin-bottom:5px; letter-spacing:.06em; }
+.chal-p   { font-size:13px; color:var(--ink-2); line-height:1.5; }
+
+/* ── PIPELINE ── */
+.pipe { display:flex; align-items:center; width:100%; }
+.pnode {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  background:var(--paper-up); border:1px solid var(--rule-2);
+  border-radius:6px; padding:12px 8px; text-align:center;
+}
+.pnode-h { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--ink); }
+.pnode-s { font-size:10.5px; color:var(--ink-3); margin-top:2px; }
+.pnode.hi { border-color:var(--red); background:#fff8f8; }
+.pnode.hi .pnode-h { color:var(--red); }
+.parr { width:22px; min-width:22px; text-align:center; color:var(--ink-3); font-size:14px; }
+
+/* ── CODE BLOCK ── */
+.code {
+  background:#111; color:#f5f3ee;
+  border-radius:6px; padding:16px 20px;
+  font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.75;
+  width:100%; max-width:680px;
+}
+.code .cm { color:#666; font-style:italic; }
+.code .kw { color:#8ec3f5; }
+.code .fn { color:#c9a86c; }
+.code .st { color:#98d498; }
+.code .nm { color:#f5c842; }
+
+/* ── CALLOUT ── */
+.callout {
+  border-left:3px solid var(--red);
+  padding:14px 18px; background:var(--paper-up);
+  font-size:16px; color:var(--ink-2); font-style:italic;
+  border-radius:0 6px 6px 0; max-width:620px;
+  line-height: 1.65;
+}
+
+/* ── LIVE FACT CHECK ANIMATION (Slide 3) ── */
+.fc-demo {
+  background: var(--paper-up);
+  border: 1px solid var(--rule-2);
+  border-radius: 8px;
+  padding: 20px 24px;
+  width: 100%; max-width: 560px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.fc-claim-label { font-size: 9.5px; color: var(--ink-3); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+.fc-claim-text  { font-family: 'IBM Plex Sans', sans-serif; font-size: 16px; font-weight: 500; color: var(--ink); margin-bottom: 14px; quotes: '\201C' '\201D'; }
+.fc-claim-text::before { content: open-quote; }
+.fc-claim-text::after  { content: close-quote; }
+.fc-status {
+  font-size: 11px; color: var(--ink-3); letter-spacing: .06em;
+  display: flex; align-items: center; gap: 8px; min-height: 18px;
+}
+.fc-dots span {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--ink-3); margin: 0 1px;
+  animation: blink 1.2s infinite;
+}
+.fc-dots span:nth-child(2) { animation-delay: .2s; }
+.fc-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100%{opacity:.15} 40%{opacity:1} }
+.fc-source {
+  font-size: 11px; color: var(--fact); display: none;
+  margin-bottom: 10px;
+}
+.fc-result {
+  display: none;
+  flex-direction: column; gap: 6px;
+}
+.fc-verdict-tag { width: fit-content; }
+.fc-explain { font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--ink-2); font-style:italic; line-height:1.5; }
+.fc-link { font-size:10.5px; color:var(--fact); text-decoration:none; }
+.fc-link:hover { text-decoration:underline; }
+
+/* ── TITLE SLIDE ── */
+#s1 .sub {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 18px; color: rgba(245,243,238,.6);
+  font-style: italic; max-width: 460px; text-align: center; line-height: 1.6;
+  margin-top: 10px;
+}
+#s1 .kicker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(245,243,238,.35); margin-top: 28px;
+}
+#s1 .mark { font-size: 32px; color: #cc4444; }
+
+/* ── ENLARGE HINT ── */
+.enlarge-hint {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; color: var(--ink-3);
+  letter-spacing: .06em; text-align: center;
+  margin-top: 6px; cursor: pointer;
+}
+.enlargeable { cursor: zoom-in; }
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+<div id="counter">1 / 12</div>
+<div id="dots"></div>
+<div id="laser"></div>
+
+<div id="enlarge-overlay">
+  <div id="enlarge-inner"></div>
+</div>
+
+<div class="deck">
+
+<!-- ── 1 TITLE ── -->
+<section class="slide dark active" id="s1">
+  <div class="col center">
+    <div class="mark">◈</div>
+    <div style="height:16px"></div>
+    <h1>TruthLens</h1>
+    <div class="rule"></div>
+    <p class="sub">How I built a real-time YouTube fact-checker as a Chrome extension — from scratch</p>
+    <span class="kicker">Chrome MV3 · Agentic AI · Web Verification</span>
+  </div>
+</section>
+
+<!-- ── 2 PROBLEM ── -->
+<section class="slide" id="s2">
+  <div class="label">01 — The Problem</div>
+  <div class="col w" style="gap:24px">
+    <h2>YouTube is a<br>fact-checking black hole</h2>
+    <div data-step="1">
+      <div class="callout">You're watching a health video. The presenter makes 12 claims in 10 minutes. How many are true?</div>
+    </div>
+    <div class="g3" data-step="2">
+      <div class="feat">
+        <div class="feat-icon">📺</div>
+        <div class="feat-h">No native checker</div>
+        <div class="feat-p">YouTube has no built-in fact verification — it relies on community notes</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-h">Claims fly by fast</div>
+        <div class="feat-p">Speakers make dozens of factual claims per video — too fast to pause and verify</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🧠</div>
+        <div class="feat-h">AI has training bias</div>
+        <div class="feat-p">LLMs have knowledge cutoffs and biases — you can't just ask ChatGPT if a claim is true</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 3 WHAT IT DOES + LIVE DEMO ── -->
+<section class="slide" id="s3">
+  <div class="label">02 — What It Does</div>
+  <div class="col w" style="gap:22px">
+    <h2>See it work</h2>
+
+    <div class="g2" style="align-items:start" data-step="1">
+      <!-- Live fact-check demo -->
+      <div class="fc-demo">
+        <div class="fc-claim-label">Claim detected</div>
+        <div class="fc-claim-text">YouTube has over 500 hours of video uploaded every minute</div>
+        <div class="fc-status" id="fc-status">
+          <div class="fc-dots"><span></span><span></span><span></span></div>
+          <span id="fc-status-text">Searching web for evidence...</span>
+        </div>
+        <div class="fc-source" id="fc-source">[CREDIBLE] statista.com — YouTube Statistics 2024</div>
+        <div class="fc-result" id="fc-result">
+          <span class="tag tag-fact fc-verdict-tag">✓ Verified Fact</span>
+          <p class="fc-explain">Confirmed by statista.com — 500 hours/min figure is widely cited and current as of 2024</p>
+          <a class="fc-link" href="#" onclick="return false">↗ statista.com</a>
+        </div>
+      </div>
+
+      <!-- Category legend -->
+      <div class="col" style="gap:10px">
+        <div class="col" style="gap:7px">
+          <div class="row" style="gap:10px"><span class="tag tag-fact">✓ Verified Fact</span><span style="font-size:13px;color:var(--ink-2)">Confirmed by web evidence</span></div>
+          <div class="row" style="gap:10px"><span class="tag tag-op">◊ Opinion</span><span style="font-size:13px;color:var(--ink-2)">Subjective, not checkable</span></div>
+          <div class="row" style="gap:10px"><span class="tag tag-unv">? Unverified</span><span style="font-size:13px;color:var(--ink-2)">No clear evidence found</span></div>
+          <div class="row" style="gap:10px"><span class="tag tag-gas">✕ Gas</span><span style="font-size:13px;color:var(--ink-2)">Contradicted by evidence</span></div>
+        </div>
+        <div style="height:8px"></div>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-3);margin-bottom:8px;letter-spacing:.08em">VERDICTS BASED ON</div>
+          <div style="font-size:13px;color:var(--ink-2);line-height:1.55">Live web search only — <strong style="color:var(--ink)">no AI training data</strong> used for fact verdicts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 4 ARCHITECTURE ── -->
+<section class="slide" id="s4">
+  <div class="label">03 — Architecture</div>
+  <div class="col w" style="gap:20px">
+    <h2>Three layers, one pipeline</h2>
+    <div class="enlargeable" id="arch-svg-wrap" onclick="openEnlarge(this)" data-step="1">
+      <svg id="arch-svg" viewBox="0 0 780 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:780px">
+        <defs>
+          <marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+            <path d="M0,1 L0,5 L6,3 z" fill="#888"/>
+          </marker>
+        </defs>
+        <rect x="10" y="70" width="130" height="100" rx="6" fill="#fff" stroke="#ccc" stroke-width="1.2"/>
+        <text x="75" y="96" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#888" letter-spacing="1">YOUTUBE</text>
+        <text x="75" y="116" text-anchor="middle" font-family="Fraunces,serif" font-size="15" fill="#111">Page</text>
+        <text x="75" y="134" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">content.js</text>
+        <text x="75" y="152" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">sidebar iframe</text>
+        <line x1="142" y1="120" x2="175" y2="120" stroke="#aaa" stroke-width="1.5" marker-end="url(#arr)"/>
+        <text x="158" y="113" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="8" fill="#aaa">message</text>
+        <rect x="177" y="50" width="155" height="140" rx="6" fill="#fff8f8" stroke="#cc0000" stroke-width="1.8"/>
+        <text x="254" y="77" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#cc0000" letter-spacing="1">BACKGROUND</text>
+        <text x="254" y="97" text-anchor="middle" font-family="Fraunces,serif" font-size="15" fill="#111">Service Worker</text>
+        <text x="254" y="117" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">background.js</text>
+        <line x1="216" y1="132" x2="292" y2="132" stroke="#ddd" stroke-width="1"/>
+        <text x="254" y="150" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">transcript fetch</text>
+        <text x="254" y="166" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">agent loop · cache</text>
+        <line x1="334" y1="120" x2="362" y2="90" stroke="#aaa" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="334" y1="140" x2="362" y2="168" stroke="#aaa" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="364" y="46" width="130" height="64" rx="6" fill="#fff" stroke="#ccc" stroke-width="1.2"/>
+        <text x="429" y="68" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa" letter-spacing="1">SUPADATA</text>
+        <text x="429" y="88" text-anchor="middle" font-family="Fraunces,serif" font-size="14" fill="#111">Transcript</text>
+        <text x="429" y="104" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">timestamped segments</text>
+        <rect x="364" y="136" width="130" height="64" rx="6" fill="#fff" stroke="#ccc" stroke-width="1.2"/>
+        <text x="429" y="158" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa" letter-spacing="1">TAVILY</text>
+        <text x="429" y="178" text-anchor="middle" font-family="Fraunces,serif" font-size="14" fill="#111">Web Search</text>
+        <text x="429" y="194" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">3 results · days:365</text>
+        <line x1="496" y1="78" x2="524" y2="78" stroke="#aaa" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="496" y1="168" x2="524" y2="168" stroke="#aaa" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="526" y="46" width="144" height="170" rx="6" fill="#f4fff4" stroke="#4d6a3a" stroke-width="1.8"/>
+        <text x="598" y="72" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#4d6a3a" letter-spacing="1">AI AGENT</text>
+        <text x="598" y="92" text-anchor="middle" font-family="Fraunces,serif" font-size="14" fill="#111">Tool-Call Loop</text>
+        <line x1="546" y1="106" x2="650" y2="106" stroke="#ddd" stroke-width="1"/>
+        <text x="598" y="124" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">DeepSeek · Anthropic</text>
+        <text x="598" y="140" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">OpenAI</text>
+        <line x1="546" y1="154" x2="650" y2="154" stroke="#ddd" stroke-width="1"/>
+        <text x="598" y="171" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#4d6a3a">web_search tool</text>
+        <text x="598" y="187" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#4d6a3a">→ Tavily on call</text>
+        <text x="598" y="205" text-anchor="middle" font-family="'IBM Plex Mono'" font-size="9" fill="#aaa">max 25 iterations</text>
+      </svg>
+      <div class="enlarge-hint">click to enlarge</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 5 TRANSCRIPT ── -->
+<section class="slide" id="s5">
+  <div class="label">04 — Getting the Transcript</div>
+  <div class="col w" style="gap:20px">
+    <h2>Three approaches failed.<br>One worked.</h2>
+    <div class="g2" style="align-items:start;gap:16px">
+      <div class="col" style="gap:12px">
+        <div class="chal" data-step="1">
+          <div class="chal-err">✕ window.ytInitialPlayerResponse</div>
+          <h3>Isolated world</h3>
+          <p class="chal-p">Content scripts can't read page JS variables. The data is right there — completely unreachable.</p>
+        </div>
+        <div class="chal" data-step="2">
+          <div class="chal-err">✕ InnerTube API</div>
+          <h3>CORS + session tokens</h3>
+          <p class="chal-p">YouTube's internal API blocks extension contexts and requires constantly-changing session tokens.</p>
+        </div>
+        <div class="chal" data-step="3">
+          <div class="chal-err">✕ DOM scraping</div>
+          <h3>Panel must be open</h3>
+          <p class="chal-p">The transcript panel only renders if the user opens it manually. DOM structure breaks with YouTube A/B tests.</p>
+        </div>
+      </div>
+      <div class="col" style="gap:12px" data-step="4">
+        <div class="chal card-fact" style="border-left:3px solid var(--fact)">
+          <div class="chal-ok">✓ Supadata API</div>
+          <h3>Server-side transcript fetch</h3>
+          <p class="chal-p">Third-party API fetches YouTube transcripts server-side, bypassing CORS entirely. Returns timestamped segments — perfect for timestamp linking in the sidebar.</p>
+        </div>
+        <div class="code" style="font-size:11px">
+          <span class="cm">// Each segment, offset in ms</span><br>
+          {<br>
+          &nbsp;&nbsp;<span class="nm">text</span>: <span class="st">"The mRNA technology..."</span>,<br>
+          &nbsp;&nbsp;<span class="nm">offset</span>: <span class="st">142000</span>, <span class="cm">// → 2:22</span><br>
+          &nbsp;&nbsp;<span class="nm">duration</span>: <span class="st">4200</span><br>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 6 PIPELINE ── -->
+<section class="slide" id="s6">
+  <div class="label">05 — Verification Pipeline</div>
+  <div class="col w" style="gap:18px">
+    <h2>The pipeline evolved three times</h2>
+
+    <div class="card card-unv" style="padding:14px 18px" data-step="1">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--unv);margin-bottom:10px;letter-spacing:.08em">V1 — SINGLE PASS (TRAINING DATA)</div>
+      <div class="pipe">
+        <div class="pnode"><div class="pnode-h">Transcript</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">AI</div><div class="pnode-s">from memory</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">Results</div></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px">Problem: AI uses training data with a cutoff date and can be confidently wrong.</p>
+    </div>
+
+    <div class="card" style="padding:14px 18px;border-left:3px solid var(--opinion)" data-step="2">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--opinion);margin-bottom:10px;letter-spacing:.08em">V2 — TWO PASS (TAVILY BOLTED ON)</div>
+      <div class="pipe">
+        <div class="pnode"><div class="pnode-h">Transcript</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">Extract</div><div class="pnode-s">claims</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">Tavily</div><div class="pnode-s">1 search each</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">Categorize</div></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px">Better — but our hardcoded query <code style="font-size:11px">"fact check: &lt;claim&gt;"</code> often returns irrelevant results.</p>
+    </div>
+
+    <div class="card card-fact" style="padding:14px 18px" data-step="3">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--fact);margin-bottom:10px;letter-spacing:.08em">V3 — AGENTIC (CURRENT)</div>
+      <div class="pipe">
+        <div class="pnode"><div class="pnode-h">Transcript</div></div>
+        <div class="parr">→</div>
+        <div class="pnode hi"><div class="pnode-h">Agent</div><div class="pnode-s">tool calling</div></div>
+        <div class="parr">⇄</div>
+        <div class="pnode hi"><div class="pnode-h">Tavily</div><div class="pnode-s">AI picks query</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pnode-h">Results</div></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px">AI crafts its own queries, searches multiple times if needed, only categorizes once it has evidence.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 7 AGENTIC LOOP ── -->
+<section class="slide" id="s7">
+  <div class="label">06 — The Agentic Loop</div>
+  <div class="col w" style="gap:22px">
+    <h2>The AI drives every search</h2>
+    <div class="g2" style="align-items:start">
+      <div class="steps">
+        <div class="step" data-step="1">
+          <div class="step-n">01</div>
+          <div><div class="step-h">Pick a claim</div><div class="step-p">AI reads the transcript, identifies the next checkable factual claim</div></div>
+        </div>
+        <div class="step" data-step="2">
+          <div class="step-n">02</div>
+          <div><div class="step-h">Craft a search query</div><div class="step-p">AI writes its own specific query — not us hardcoding one. Gets 3 Tavily results tagged [CREDIBLE] or [UNVERIFIED].</div></div>
+        </div>
+        <div class="step" data-step="3">
+          <div class="step-n">03</div>
+          <div><div class="step-h">Search again if needed</div><div class="step-p">If results are poor or off-topic, AI searches with a different query — up to 25 iterations total</div></div>
+        </div>
+        <div class="step" data-step="4">
+          <div class="step-n">04</div>
+          <div><div class="step-h">Categorize from evidence</div><div class="step-p">Only now does the AI assign a verdict — strictly from search results, never training knowledge</div></div>
+        </div>
+      </div>
+      <div data-step="5">
+        <div class="code" style="font-size:11px">
+          <span class="cm">// Provider-agnostic agent loop</span><br>
+          <span class="kw">while</span> (i &lt; MAX_ITERS) {<br><br>
+          &nbsp;&nbsp;<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">callAI</span>(messages, tools);<br><br>
+          &nbsp;&nbsp;<span class="cm">// No tool calls → agent done</span><br>
+          &nbsp;&nbsp;<span class="kw">if</span> (!res.tool_calls) <span class="kw">break</span>;<br><br>
+          &nbsp;&nbsp;<span class="cm">// Batch searches in parallel</span><br>
+          &nbsp;&nbsp;<span class="kw">const</span> results = <span class="kw">await</span> Promise.<span class="fn">all</span>(<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;res.tool_calls.<span class="fn">map</span>(tc =&gt;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">searchTavily</span>(tc.query)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;)<br>
+          &nbsp;&nbsp;);<br>
+          &nbsp;&nbsp;messages.<span class="fn">push</span>(results);<br>
+          }<br><br>
+          <span class="kw">return</span> <span class="fn">parseJSON</span>(finalMessage);
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 8 SOURCE QUALITY ── -->
+<section class="slide" id="s8">
+  <div class="label">07 — Source Quality</div>
+  <div class="col w" style="gap:22px">
+    <h2>Not all sources are equal</h2>
+    <div class="g2" style="align-items:start">
+      <div class="col" style="gap:14px" data-step="1">
+        <p>Each Tavily result is tagged before being passed to the AI. The model is explicitly instructed to weight them accordingly.</p>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--fact);margin-bottom:10px;letter-spacing:.08em">CREDIBLE DOMAINS</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <span class="tag tag-fact" style="font-size:9.5px">reuters.com</span>
+            <span class="tag tag-fact" style="font-size:9.5px">apnews.com</span>
+            <span class="tag tag-fact" style="font-size:9.5px">bbc.com</span>
+            <span class="tag tag-fact" style="font-size:9.5px">nature.com</span>
+            <span class="tag tag-fact" style="font-size:9.5px">cdc.gov</span>
+            <span class="tag tag-fact" style="font-size:9.5px">who.int</span>
+            <span class="tag tag-fact" style="font-size:9.5px">snopes.com</span>
+            <span class="tag tag-fact" style="font-size:9.5px">nejm.org</span>
+            <span class="tag tag-fact" style="font-size:9.5px">factcheck.org</span>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="gap:10px" data-step="2">
+        <div class="code" style="font-size:11px;margin-bottom:4px">
+          [1] <span class="nm">[CREDIBLE]</span> reuters.com<br>
+          Title: Study finds no link...<br>
+          Snippet: Researchers at...<br><br>
+          [2] <span class="nm">[UNVERIFIED SOURCE]</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;healthblog24.com<br>
+          Title: The truth they hide...<br>
+          Snippet: Many experts say...
+        </div>
+        <div class="col" style="gap:7px;font-size:13px;color:var(--ink-2)">
+          <div class="row" style="gap:8px"><span class="tag tag-fact" style="font-size:9.5px;white-space:nowrap">Credible confirms</span><span>→ verified</span></div>
+          <div class="row" style="gap:8px"><span class="tag tag-unv" style="font-size:9.5px;white-space:nowrap">Unverified only</span><span>→ unverified</span></div>
+          <div class="row" style="gap:8px"><span class="tag tag-gas" style="font-size:9.5px;white-space:nowrap">Credible contradicts</span><span>→ gas</span></div>
+          <div class="row" style="gap:8px"><span class="tag tag-unv" style="font-size:9.5px;white-space:nowrap">No results</span><span>→ unverified (hard rule)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 9 UI DESIGN ── -->
+<section class="slide" id="s9">
+  <div class="label">08 — UI Design</div>
+  <div class="col w" style="gap:22px">
+    <h2>Research field-notebook aesthetic</h2>
+    <div class="g2" style="align-items:start">
+      <div class="col" style="gap:14px" data-step="1">
+        <p>Design language is deliberately <em>analogue</em> — warm cream paper, sepia ink, typefaces from academic publishing. It signals seriousness.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="feat" style="min-width:140px;padding:14px">
+            <div class="feat-h" style="font-family:'Fraunces',serif;font-size:16px">Fraunces</div>
+            <div class="feat-p">Display headlines. Optical-size variable weight.</div>
+          </div>
+          <div class="feat" style="min-width:140px;padding:14px">
+            <div class="feat-h" style="font-family:'IBM Plex Mono',monospace;font-size:13px">IBM Plex</div>
+            <div class="feat-p">Labels, tags, URLs, metadata.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="gap:12px" data-step="2">
+        <div class="card" style="padding:14px 16px;background:#1a1a1a">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:#666;margin-bottom:8px;letter-spacing:.08em">SIDEBAR DOCKING</div>
+          <div style="display:flex;gap:8px;height:64px">
+            <div style="flex:3;background:#111;border-radius:4px;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:11px;color:#444;font-family:'IBM Plex Mono',monospace">▶ video</span>
+            </div>
+            <div style="flex:2;background:#f5f3ee;border-radius:4px;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:10px;color:#666;font-family:'IBM Plex Mono',monospace">◈ sidebar</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#555;font-family:'IBM Plex Mono',monospace;margin-top:8px">margin-right: 460px on #page-manager</div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-3);margin-bottom:10px;letter-spacing:.08em">CREDIBILITY METER</div>
+          <div style="height:7px;background:var(--paper-dn);border-radius:99px;overflow:hidden;position:relative">
+            <div style="position:absolute;left:0;top:0;height:100%;width:72%;background:linear-gradient(to right,#9c3b2e,#a06d12,#4d6a3a);border-radius:99px;opacity:.55"></div>
+            <div style="position:absolute;left:72%;top:-2px;width:1.5px;height:11px;background:#111;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--gas)">Hyped</span>
+            <span style="font-family:'Fraunces',serif;font-size:13px;color:var(--fact);font-weight:500">Balanced</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--fact)">Helpful</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 10 CHALLENGES ── -->
+<section class="slide" id="s10">
+  <div class="label">09 — Key Challenges</div>
+  <div class="col w" style="gap:18px">
+    <h2>The hard parts</h2>
+    <div class="g2" style="gap:14px">
+      <div class="chal" data-step="1"><div class="chal-err">Chrome MV3 Isolated World</div><h3>Content scripts can't read page JS</h3><p class="chal-p">The transcript lives in <code>window.ytInitialPlayerResponse</code> — completely inaccessible from a content script. Required a server-side transcript API.</p></div>
+      <div class="chal" data-step="2"><div class="chal-err">YouTube SPA Navigation</div><h3>Page doesn't reload between videos</h3><p class="chal-p">YouTube is a single-page app. Used <code>yt-navigate-finish</code> events + a 2s heartbeat to re-inject the button whenever YouTube removes it.</p></div>
+      <div class="chal" data-step="3"><div class="chal-err">Training Data Contamination</div><h3>AI confidently wrong from memory</h3><p class="chal-p">Even with Tavily results, the AI would default to training knowledge. Required explicit prompt rules + hard code enforcement post-response.</p></div>
+      <div class="chal" data-step="4"><div class="chal-err">Sidebar Timing Race</div><h3>FACT_CHECK_START lost on cold load</h3><p class="chal-p">Sidebar iframe wasn't ready when content.js sent the first message. Fixed with a <code>SIDEBAR_READY</code> handshake and 1.5s fallback timeout.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 11 LEARNINGS ── -->
+<section class="slide" id="s11">
+  <div class="label">10 — Key Learnings</div>
+  <div class="col" style="gap:18px;width:100%;max-width:740px">
+    <h2>What I learned</h2>
+    <div class="steps">
+      <div class="step" data-step="1"><div class="step-n">01</div><div><div class="step-h">Agentic beats rigid pipelines</div><div class="step-p">Letting the AI choose its own search queries produces dramatically better results than hardcoded queries. The model knows what it needs to know.</div></div></div>
+      <div class="step" data-step="2"><div class="step-n">02</div><div><div class="step-h">Source provenance matters more than source count</div><div class="step-p">One result from reuters.com is worth more than 10 from unknown blogs. Tagging sources as credible vs unverified explicitly changes verdict quality.</div></div></div>
+      <div class="step" data-step="3"><div class="step-n">03</div><div><div class="step-h">Chrome extensions are deceptively complex</div><div class="step-p">Isolated worlds, service workers, CSP headers, SPA navigation, iframe sandboxing, MV3 restrictions — each is simple, but they interact in surprising ways.</div></div></div>
+      <div class="step" data-step="4"><div class="step-n">04</div><div><div class="step-h">Design language communicates credibility</div><div class="step-p">A fact-checker that looks like a chatbot feels less trustworthy than one that looks like a reference tool. Design signals intent before users read a word.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 12 THANK YOU ── -->
+<section class="slide dark" id="s12">
+  <div class="col center">
+    <div class="mark" style="font-size:28px;color:#cc4444">◈</div>
+    <div style="height:14px"></div>
+    <h1>TruthLens</h1>
+    <div class="rule"></div>
+    <p style="color:rgba(245,243,238,.6);font-style:italic;text-align:center;max-width:460px">Don't give YouTube your attention before it's earned it.</p>
+    <div style="height:28px"></div>
+    <div class="col" style="align-items:center;gap:8px">
+      <span class="tag tag-fact" style="font-size:11px">DeepSeek · Anthropic · OpenAI</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(245,243,238,.3);margin-top:4px">Supadata · Tavily · Chrome MV3</span>
+    </div>
+  </div>
+</section>
+
+</div><!-- /deck -->
+
+<script>
+'use strict';
+
+// ── Config ──────────────────────────────────────────────────────────
+const TOTAL = 12;
+const LABELS = [
+  'Title','The Problem','What It Does','Architecture',
+  'Transcript','Pipeline','Agentic Loop','Source Quality',
+  'UI Design','Challenges','Learnings','Thank You'
+];
+
+let current   = 1;
+let stepIndex = 0;  // current reveal step within active slide
+
+// ── Helpers ──────────────────────────────────────────────────────────
+const slide  = n => document.getElementById(`s${n}`);
+const bar    = document.getElementById('bar');
+const ctr    = document.getElementById('counter');
+const dotsEl = document.getElementById('dots');
+const overlay = document.getElementById('enlarge-overlay');
+const enlInner = document.getElementById('enlarge-inner');
+
+// ── Build dots ───────────────────────────────────────────────────────
+LABELS.forEach((label, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.innerHTML = `<span class="dot-label">${label}</span>`;
+  d.addEventListener('click', () => goTo(i + 1));
+  dotsEl.appendChild(d);
+});
+
+function updateDots() {
+  dotsEl.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i + 1 === current);
+  });
+}
+
+// ── Reveal system ────────────────────────────────────────────────────
+function maxStep(n) {
+  const sl = slide(n);
+  if (!sl) return 0;
+  let max = 0;
+  sl.querySelectorAll('[data-step]').forEach(el => {
+    max = Math.max(max, parseInt(el.dataset.step) || 0);
+  });
+  return max;
+}
+
+function revealUpTo(n, step) {
+  const sl = slide(n);
+  if (!sl) return;
+  sl.querySelectorAll('[data-step]').forEach(el => {
+    const s = parseInt(el.dataset.step) || 0;
+    el.classList.toggle('revealed', s <= step);
+  });
+}
+
+// ── Navigation ───────────────────────────────────────────────────────
+function goTo(n, skipReveal = false) {
+  if (n < 1 || n > TOTAL) return;
+
+  const prev = slide(current);
+  prev.classList.remove('active');
+  prev.classList.add('exit');
+  setTimeout(() => prev.classList.remove('exit'), 320);
+
+  current = n;
+  stepIndex = skipReveal ? maxStep(n) : 0;
+
+  const next = slide(current);
+  next.classList.add('active');
+  revealUpTo(current, stepIndex);
+
+  bar.style.width = `${(current / TOTAL) * 100}%`;
+  ctr.textContent = `${current} / ${TOTAL}`;
+  updateDots();
+
+  // Dark slides → adjust dot/counter colour handled by CSS already
+}
+
+function advance() {
+  const max = maxStep(current);
+  if (stepIndex < max) {
+    stepIndex++;
+    revealUpTo(current, stepIndex);
+    // Trigger fact-check animation on slide 3 step 1
+    if (current === 3 && stepIndex === 1) startFcAnimation();
+  } else {
+    goTo(current + 1);
+  }
+}
+
+function retreat() {
+  if (stepIndex > 0) {
+    stepIndex = 0;
+    revealUpTo(current, 0);
+  } else {
+    goTo(current - 1, true);
+  }
+}
+
+// ── Keyboard ─────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (overlay.classList.contains('open')) {
+    if (e.key === 'Escape') closeEnlarge();
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') {
+    e.preventDefault(); advance();
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault(); retreat();
+  } else if (e.key === 'Home') goTo(1);
+  else if (e.key === 'End')  goTo(TOTAL, true);
+  else if (e.key === 'l' || e.key === 'L') {
+    document.documentElement.classList.add('laser');
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'l' || e.key === 'L') {
+    document.documentElement.classList.remove('laser');
+  }
+});
+
+// ── Laser pointer ────────────────────────────────────────────────────
+const laserEl = document.getElementById('laser');
+document.addEventListener('mousemove', e => {
+  laserEl.style.left = e.clientX + 'px';
+  laserEl.style.top  = e.clientY + 'px';
+});
+
+// ── Touch swipe ──────────────────────────────────────────────────────
+let tx = null;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend',   e => {
+  if (tx === null) return;
+  const dx = e.changedTouches[0].clientX - tx;
+  if (Math.abs(dx) > 48) dx < 0 ? advance() : retreat();
+  tx = null;
+});
+
+// ── Click to advance (outside interactive elements) ──────────────────
+document.querySelector('.deck').addEventListener('click', e => {
+  if (e.target.closest('.enlargeable, a, button, .dot, [onclick]')) return;
+  advance();
+});
+
+// ── Enlarge ──────────────────────────────────────────────────────────
+function openEnlarge(el) {
+  enlInner.innerHTML = el.querySelector('svg').outerHTML;
+  enlInner.querySelector('svg').style.cssText = 'width:80vw;max-width:1000px;height:auto';
+  overlay.classList.add('open');
+}
+function closeEnlarge() {
+  overlay.classList.remove('open');
+}
+overlay.addEventListener('click', closeEnlarge);
+
+// ── Live fact-check animation (Slide 3) ──────────────────────────────
+function startFcAnimation() {
+  const status   = document.getElementById('fc-status');
+  const statusTx = document.getElementById('fc-status-text');
+  const source   = document.getElementById('fc-source');
+  const result   = document.getElementById('fc-result');
+
+  // Reset
+  status.style.display  = 'flex';
+  source.style.display  = 'none';
+  result.style.display  = 'none';
+  statusTx.textContent  = 'Searching web for evidence...';
+
+  setTimeout(() => {
+    statusTx.textContent = 'Found result from statista.com...';
+  }, 900);
+
+  setTimeout(() => {
+    source.style.display = 'block';
+    source.style.opacity = '0';
+    source.style.transition = 'opacity .4s';
+    requestAnimationFrame(() => { source.style.opacity = '1'; });
+  }, 1600);
+
+  setTimeout(() => {
+    status.style.display = 'none';
+    result.style.display = 'flex';
+    result.style.opacity = '0';
+    result.style.transition = 'opacity .4s';
+    requestAnimationFrame(() => { result.style.opacity = '1'; });
+  }, 2300);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────
+bar.style.width = `${(1 / TOTAL) * 100}%`;
+revealUpTo(1, 0);
+</script>
+</body>
+</html>

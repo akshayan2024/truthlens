@@ -11,28 +11,31 @@ const CATEGORY_META = {
 };
 
 let allClaims = [];
-let activeFilter = 'all';
+let activeFilter = 'verified';
 
 // ─── DOM refs ───────────────────────────────────────────────────────────────
 
 const $ = id => document.getElementById(id);
 
 const els = {
-  videoTitle:   $('video-title'),
-  statusBadge:  $('status-badge'),
-  filterTabs:   $('filter-tabs'),
-  content:      $('content'),
-  stateIdle:    $('state-idle'),
-  stateLoading: $('state-loading'),
-  stateError:   $('state-error'),
-  claimsList:   $('claims-list'),
-  errorMsg:     $('error-msg'),
-  summaryText:  $('summary-text'),
-  ctAll:        $('ct-all'),
-  ctVerified:   $('ct-verified'),
-  ctOpinion:    $('ct-opinion'),
-  ctUnverified: $('ct-unverified'),
-  ctGas:        $('ct-gas'),
+  videoTitle:       $('video-title'),
+  statusBadge:      $('status-badge'),
+  filterTabs:       $('filter-tabs'),
+  credMeter:        $('credibility-meter'),
+  credFill:         $('cred-fill'),
+  credNeedle:       $('cred-needle'),
+  credVerdict:      $('cred-verdict'),
+  content:          $('content'),
+  stateIdle:        $('state-idle'),
+  stateLoading:     $('state-loading'),
+  stateError:       $('state-error'),
+  claimsList:       $('claims-list'),
+  errorMsg:         $('error-msg'),
+  summaryText:      $('summary-text'),
+  ctVerified:       $('ct-verified'),
+  ctOpinion:        $('ct-opinion'),
+  ctUnverified:     $('ct-unverified'),
+  ctGas:            $('ct-gas'),
 };
 
 // ─── State transitions ───────────────────────────────────────────────────────
@@ -63,6 +66,7 @@ function handleStart({ videoTitle }) {
 
   els.filterTabs.hidden = true;
   els.summaryText.classList.add('hidden');
+  hideMeter();
 
   allClaims = [];
 }
@@ -80,7 +84,6 @@ function handleResults({ claims = [], summary = '' }) {
   const counts = { verified: 0, opinion: 0, unverified: 0, gas: 0 };
   claims.forEach(c => { if (counts[c.category] !== undefined) counts[c.category]++; });
 
-  els.ctAll.textContent        = claims.length;
   els.ctVerified.textContent   = counts.verified;
   els.ctOpinion.textContent    = counts.opinion;
   els.ctUnverified.textContent = counts.unverified;
@@ -89,16 +92,18 @@ function handleResults({ claims = [], summary = '' }) {
   setStatus('complete', `${claims.length} Claims`);
 
   els.filterTabs.hidden = false;
+  updateMeter(counts);
 
   if (summary) {
     els.summaryText.textContent = summary;
     els.summaryText.classList.remove('hidden');
   }
 
-  activeFilter = 'all';
+  activeFilter = 'verified';
   document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.filter === 'all');
-    t.setAttribute('aria-selected', t.dataset.filter === 'all' ? 'true' : 'false');
+    const isVerified = t.dataset.filter === 'verified';
+    t.classList.toggle('active', isVerified);
+    t.setAttribute('aria-selected', isVerified ? 'true' : 'false');
   });
 
   renderClaims();
@@ -120,11 +125,50 @@ function handleVideoChanged({ videoTitle }) {
   showScreen('stateIdle');
   els.filterTabs.hidden = true;
   els.summaryText.classList.add('hidden');
+  hideMeter();
   allClaims = [];
-  activeFilter = 'all';
+  activeFilter = 'verified';
   document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.filter === 'all');
+    t.classList.toggle('active', t.dataset.filter === 'verified');
   });
+}
+
+// ─── Credibility meter ───────────────────────────────────────────────────────
+
+function calcCredScore(counts) {
+  const { verified, opinion, unverified, gas } = counts;
+  const total = verified + opinion + unverified + gas;
+  if (total === 0) return 50;
+  // Weighted: gas is the heaviest drag, verified the biggest lift
+  const raw = (verified * 3) + (opinion * 1) - (unverified * 2) - (gas * 4);
+  const max =  total * 3;
+  const min = -total * 4;
+  return Math.round(((raw - min) / (max - min)) * 100);
+}
+
+function updateMeter(counts) {
+  const score = calcCredScore(counts);
+  const pct   = `${score}%`;
+
+  els.credFill.style.width   = pct;
+  els.credNeedle.style.left  = pct;
+
+  let label, cls;
+  if      (score < 28) { label = 'Hyped';    cls = 'verdict-hyped';    }
+  else if (score < 48) { label = 'Misleading'; cls = 'verdict-hyped';  }
+  else if (score < 58) { label = 'Mixed';     cls = 'verdict-mixed';    }
+  else if (score < 78) { label = 'Balanced';  cls = 'verdict-balanced'; }
+  else                 { label = 'Credible';  cls = 'verdict-credible'; }
+
+  els.credVerdict.textContent = label;
+  els.credVerdict.className   = `cred-verdict ${cls}`;
+  els.credMeter.hidden        = false;
+}
+
+function hideMeter() {
+  els.credMeter.hidden = true;
+  els.credFill.style.width  = '50%';
+  els.credNeedle.style.left = '50%';
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -162,6 +206,12 @@ function buildCard(claim, index) {
     ? `<button class="ts-btn" data-time="${ts}" title="Jump to ${fmt(ts)} in video">↳ ${fmt(ts)}</button>`
     : '';
 
+  const sourceHtml = claim.source?.url
+    ? `<a class="source-link" href="${esc(claim.source.url)}" target="_blank" rel="noopener" title="${esc(claim.source.title || claim.source.url)}">
+         <span class="source-icon" aria-hidden="true">↗</span>${esc(domain(claim.source.url))}
+       </a>`
+    : '';
+
   card.innerHTML = `
     <div class="card-top">
       <span class="entry-no">№&nbsp;${no}</span>
@@ -170,6 +220,7 @@ function buildCard(claim, index) {
     </div>
     <p class="claim-text">${esc(claim.claim)}</p>
     <p class="claim-note">${esc(claim.explanation)}</p>
+    ${sourceHtml}
   `;
 
   const tsBtn = card.querySelector('.ts-btn');
@@ -186,6 +237,11 @@ function buildCard(claim, index) {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
+
+function domain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); }
+  catch { return url; }
+}
 
 function fmt(sec) {
   const m = Math.floor(sec / 60);

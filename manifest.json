@@ -7,7 +7,8 @@
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://api.supadata.ai/*"
+    "https://api.supadata.ai/*",
+    "https://api.tavily.com/*"
   ],
 
   "background": {

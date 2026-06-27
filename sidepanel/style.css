@@ -310,7 +310,6 @@ body::after {
 .tab.active { color: var(--ink); background: var(--paper); }
 .tab.active .tab-count { color: var(--ink); }
 
-.tab.active[data-filter="all"]        { border-bottom-color: var(--ink);        }
 .tab.active[data-filter="verified"]   { border-bottom-color: var(--fact);       color: var(--fact); }
 .tab.active[data-filter="opinion"]    { border-bottom-color: var(--opinion);    color: var(--opinion); }
 .tab.active[data-filter="unverified"] { border-bottom-color: var(--unverified); color: var(--unverified); }
@@ -319,6 +318,82 @@ body::after {
 .tab.active[data-filter="opinion"]    .tab-count { color: var(--opinion); }
 .tab.active[data-filter="unverified"] .tab-count { color: var(--unverified); }
 .tab.active[data-filter="gas"]        .tab-count { color: var(--gas); }
+
+/* ─── Credibility meter ─────────────────────────────────────────────────────── */
+
+.cred-meter {
+  flex-shrink: 0;
+  padding: 12px 18px 11px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.cred-track {
+  position: relative;
+  height: 6px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.cred-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--gas)         0%,
+    var(--opinion)     45%,
+    var(--fact)        100%
+  );
+  transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.cred-needle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--ink);
+  border-radius: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: left 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+.cred-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cred-pole {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cred-verdict {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: color 0.4s;
+}
+
+.cred-verdict.verdict-hyped     { color: var(--gas); }
+.cred-verdict.verdict-mixed     { color: var(--opinion); }
+.cred-verdict.verdict-balanced  { color: var(--ink-soft); }
+.cred-verdict.verdict-credible  { color: var(--fact); }
 
 /* ─── Content plate ─────────────────────────────────────────────────────────── */
 
@@ -581,6 +656,32 @@ body::after {
   background: var(--paper-sunk);
   border-left: 2px solid var(--rule-strong);
   border-radius: 0 2px 2px 0;
+}
+
+/* ─── Source citation link ───────────────────────────────────────────────────── */
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.source-link:hover {
+  color: var(--ink-soft);
+  border-bottom-color: var(--ink-soft);
+}
+
+.source-icon {
+  font-size: 10px;
+  line-height: 1;
 }
 
 /* ─── Colophon ──────────────────────────────────────────────────────────────── */

@@ -153,13 +153,50 @@ function showSupaStatus(type, message) {
   supaStatus.textContent = message;
 }
 
+// ─── Tavily ───────────────────────────────────────────────────────────────────
+
+const tavilyInput    = document.getElementById('tavily-key');
+const saveTavilyBtn  = document.getElementById('save-tavily-btn');
+const toggleTavily   = document.getElementById('toggle-tavily');
+const tavilyIconShow = document.getElementById('tavily-icon-show');
+const tavilyIconHide = document.getElementById('tavily-icon-hide');
+const tavilyStatus   = document.getElementById('tavily-status');
+
+toggleTavily.addEventListener('click', () => {
+  const isPassword = tavilyInput.type === 'password';
+  tavilyInput.type = isPassword ? 'text' : 'password';
+  tavilyIconShow.style.display = isPassword ? 'none' : '';
+  tavilyIconHide.style.display = isPassword ? ''     : 'none';
+});
+
+saveTavilyBtn.addEventListener('click', () => {
+  const key = tavilyInput.value.trim();
+  if (!key) { showTavilyStatus('error', 'Enter your Tavily API key'); return; }
+  chrome.storage.local.set({ tavilyApiKey: key }, () => {
+    showTavilyStatus('success', '✓ Search key saved');
+  });
+});
+
+tavilyInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveTavilyBtn.click();
+});
+
+function showTavilyStatus(type, message) {
+  tavilyStatus.className = `status ${type}`;
+  tavilyStatus.textContent = message;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-chrome.storage.local.get(['provider', 'supadataApiKey'], result => {
+chrome.storage.local.get(['provider', 'supadataApiKey', 'tavilyApiKey'], result => {
   switchProvider(result.provider || 'deepseek');
   if (result.supadataApiKey) {
     supaInput.value = result.supadataApiKey;
     showSupaStatus('success', '✓ Transcript key saved');
+  }
+  if (result.tavilyApiKey) {
+    tavilyInput.value = result.tavilyApiKey;
+    showTavilyStatus('success', '✓ Search key saved');
   }
 });
 

@@ -1,145 +1,213 @@
 # TruthLens — YouTube Fact Checker
 
-TruthLens is a Chrome extension that adds an **Fact Check** button to YouTube video pages. It retrieves a video's transcript, asks your chosen AI provider to assess the most meaningful claims throughout the video, and presents a timestamped analysis beside the player.
+TruthLens is a Chrome extension that adds a **Fact Check** button to YouTube video pages. It fetches the video transcript, runs an agentic AI pipeline that searches the live web for evidence on every claim, and presents a timestamped, source-backed analysis in a sidebar docked beside the player.
 
 Each claim is classified as:
 
-- **Verified fact** — well-supported by established evidence or historical record.
+- **Verified Fact** — directly supported by credible web evidence found during this run.
 - **Opinion** — a subjective view, interpretation, preference, or prediction.
-- **Unverified** — a factual-sounding claim that needs stronger evidence or context.
-- **Gas** — a false, pseudoscientific, absurd, or seriously misleading claim.
+- **Unverified** — a factual-sounding claim where no clear evidence was found after searching.
+- **Gas** — directly contradicted by credible web evidence; demonstrably false or seriously misleading.
 
-> TruthLens is an AI-assisted research aid, not a substitute for primary sources or expert verification. Treat results as a starting point for further checking.
+**Verdicts are based on live web search results only — AI training data is never used to reach a fact verdict.**
+
+> TruthLens is an AI-assisted research aid, not a substitute for primary sources or expert verification.
+
+---
 
 ## Highlights
 
-- Adds a native-looking **Fact Check** action to YouTube watch pages.
-- Fetches timestamped transcripts through Supadata.
+- Injects a native-looking **Fact Check** button into the YouTube action row.
+- Fetches full timestamped transcripts via [Supadata](https://supadata.ai/).
+- **Agentic pipeline**: the AI drives its own web searches using tool calling — it crafts queries, searches multiple times per claim if needed, and only categorises once it has evidence.
+- Web verification via [Tavily](https://tavily.com/) — 3 results per claim, filtered to the last 365 days.
+- Sources tagged `[CREDIBLE]` or `[UNVERIFIED SOURCE]` before the AI sees them; credible sources (Reuters, BBC, Nature, CDC, Snopes, etc.) carry more weight.
+- **Credibility meter** — a Hyped ↔ Helpful score derived from the claim mix, shown above the results.
 - Supports **DeepSeek**, **Anthropic (Claude)**, and **OpenAI** models.
-- Produces 10–30 concise, timestamped claims spanning the video.
-- Lets you filter claims by category and jump directly to each moment.
-- Caches results for one hour per video, provider, and model.
+- Produces 10–30 concise, timestamped claims spanning the full video.
+- Filter claims by category; click any timestamp to seek the video.
+- Results cached for one hour per video, provider, and model.
 - Handles YouTube's single-page navigation without a full reload.
+
+---
 
 ## Stack
 
 | Layer | Technology | Purpose |
-| --- | --- | --- |
-| Browser extension | Chrome Extension Manifest V3 | Permissions, service worker, content script, and popup |
-| YouTube integration | Vanilla JavaScript + DOM APIs | Injects the action button, responds to YouTube navigation, and controls playback |
-| Transcript source | [Supadata](https://supadata.ai/) | Retrieves the video's transcript and timestamps |
-| AI analysis | DeepSeek, Anthropic, or OpenAI APIs | Categorises claims and writes short explanations |
-| Interface | HTML, CSS, vanilla JavaScript | Settings popup and docked iframe sidebar |
-| Storage | `chrome.storage.local` | Stores API settings and one-hour cached analyses |
+|---|---|---|
+| Browser extension | Chrome MV3 | Permissions, service worker, content script, popup |
+| YouTube integration | Vanilla JS + DOM | Button injection, SPA navigation, playback control |
+| Transcript source | [Supadata](https://supadata.ai/) | Server-side transcript fetch with timestamps |
+| Web verification | [Tavily](https://tavily.com/) | Live web search — 3 results per claim, recency-filtered |
+| AI agent | DeepSeek / Anthropic / OpenAI | Tool-call loop: searches Tavily, categorises from evidence |
+| Interface | HTML, CSS, Vanilla JS | Settings popup + docked iframe sidebar |
+| Storage | `chrome.storage.local` | API keys and one-hour cached analyses |
 
-There is no build step, framework, backend server, or npm dependency: load the repository directly as an unpacked Chrome extension.
+No build step, framework, backend server, or npm dependency. Load the repo directly as an unpacked extension.
+
+---
 
 ## What You Need
 
-TruthLens requires **two keys**:
+TruthLens requires **three API keys**:
 
-1. A **Supadata API key** for transcript retrieval.
-2. An API key from **one** supported AI provider:
+1. **Supadata** — transcript retrieval → [supadata.ai](https://supadata.ai/)
+2. **One AI provider** — the agent that fact-checks:
    - [DeepSeek](https://platform.deepseek.com/)
    - [Anthropic](https://console.anthropic.com/)
    - [OpenAI](https://platform.openai.com/)
+3. **Tavily** — live web search for evidence → [tavily.com](https://tavily.com/)
 
-Keys are entered through the extension popup and stored locally in Chrome using `chrome.storage.local`. They are never committed to this repository. Keep your keys private and monitor usage/costs in the respective provider dashboards.
+> Without a Tavily key the extension falls back to a single-pass AI analysis using training knowledge only. Adding Tavily is strongly recommended — it's what prevents the AI from making up verdicts.
+
+Keys are stored locally via `chrome.storage.local` and never committed to this repository.
+
+---
 
 ## Installation
 
-### 1. Clone or download the repository
+### 1. Clone or download
 
 ```bash
 git clone https://github.com/akshayan2024/truthlens.git
 ```
 
-### 2. Generate extension icons
+### 2. Generate icons
 
-Open `icons/generate-icons.html` in Chrome, click **Download All PNGs**, and place the generated `icon16.png`, `icon48.png`, and `icon128.png` files in `icons/`.
+Open `icons/generate-icons.html` in Chrome, click **Download All PNGs**, and place `icon16.png`, `icon48.png`, and `icon128.png` in `icons/`.
 
-### 3. Load the unpacked extension
+### 3. Load as unpacked extension
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose the cloned `truthlens` folder.
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked**
+4. Select the cloned folder
 
-### 4. Configure your keys
+### 4. Configure keys
 
-1. Click the TruthLens icon in Chrome's toolbar.
-2. Select DeepSeek, Anthropic, or OpenAI and choose a model.
-3. Paste and save that provider's API key.
-4. Paste and save your Supadata API key.
+1. Click the TruthLens toolbar icon
+2. Select your AI provider and model, paste your API key, save
+3. Under **Transcript Source**, paste your Supadata key, save
+4. Under **Web Verification**, paste your Tavily key, save
 
-## Using TruthLens
+---
+
+## Usage
 
 1. Open a YouTube video with an available transcript.
-2. Click **Fact Check** in the video action row.
-3. Wait while TruthLens fetches the transcript and runs the analysis.
-4. Browse the claims in the docked sidebar.
-5. Select a category tab to filter the list, or click a timestamp to seek the video.
-6. Use the refresh icon to bypass the cache and re-run the analysis.
+2. Click **Fact Check** in the video action row (below the title).
+3. TruthLens fetches the transcript, runs the agentic pipeline, and populates the sidebar.
+4. The **credibility meter** at the top gives an overall Hyped ↔ Helpful verdict.
+5. Filter by **Fact / Opinion / Unverified / Gas** tabs.
+6. Click any timestamp (↳ M:SS) to seek the video to that moment.
+7. Click a source link (↗ domain.com) to open the web evidence.
+8. Use the **refresh icon** to bypass the cache and re-run.
+
+---
 
 ## How It Works
 
-```text
-YouTube watch page
-  → content script injects the Fact Check button and sidebar
-  → background service worker receives the video ID and title
-  → Supadata returns a timestamped transcript
-  → selected AI provider returns structured claim JSON
-  → result is cached in chrome.storage.local for one hour
-  → sidebar renders categories, explanations, filters, and seek links
+```
+YouTube page
+  → content.js injects the Fact Check button and sidebar iframe
+  → user clicks Fact Check
+  → background.js fetches the timestamped transcript via Supadata
+  → agentic loop begins:
+      AI identifies a claim
+      AI calls web_search(query) → Tavily returns 3 results tagged [CREDIBLE] or [UNVERIFIED]
+      AI searches again if results are poor
+      AI categorises the claim from search evidence only
+      loop repeats for all claims (up to 25 Tavily calls)
+  → hard enforcement: any claim with no search results → forced "unverified"
+  → result cached in chrome.storage.local for one hour
+  → sidebar renders credibility meter, filter tabs, and claim cards with sources
 ```
 
-### Repository Layout
+### Fallback (no Tavily key)
 
-```text
-manifest.json           Chrome MV3 configuration
-src/content.js          YouTube button injection, sidebar bridge, navigation handling
-src/background.js       Transcript retrieval, AI-provider calls, JSON parsing, cache
-popup/                  Provider/model/API-key settings UI
-sidepanel/              Result rendering, filters, status states, timestamp controls
-icons/                  SVG source and PNG-icon generator
+The AI analyses the transcript in a single pass using training knowledge. Verdicts will be less reliable and may reflect the model's training cutoff rather than current facts.
+
+---
+
+## Repository Layout
+
+```
+manifest.json          Chrome MV3 configuration and permissions
+src/
+  content.js           Button injection, sidebar bridge, SPA navigation, heartbeat
+  background.js        Transcript fetch, agentic loop, Tavily search, cache
+popup/
+  popup.html           Settings UI
+  popup.js             Provider/model/key management
+sidepanel/
+  index.html           Sidebar structure
+  script.js            Result rendering, filters, credibility meter, timestamps
+  style.css            Research field-notebook design system
+icons/                 SVG source and PNG icon generator
 ```
 
-## Supported Providers and Defaults
+---
 
-| Provider | Available models in the popup | Default |
-| --- | --- | --- |
-| DeepSeek | V4 Flash, V4 Pro, V3 | V4 Flash |
+## Supported Models
+
+| Provider | Models | Default |
+|---|---|---|
+| DeepSeek | V4 Flash ★, V4 Pro (reasoner), V3 | V4 Flash |
 | Anthropic | Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 | Claude Haiku 4.5 |
 | OpenAI | GPT-4o Mini, GPT-4o, GPT-4.1 | GPT-4o Mini |
 
-The active provider and selected model are part of the cache identity, so changing either causes a fresh analysis.
+Provider + model are part of the cache key — switching either triggers a fresh analysis.
+
+**Note on DeepSeek V4 Pro:** the reasoner model does not support tool calling. It falls back to single-pass analysis (no Tavily searches).
+
+---
+
+## Source Credibility
+
+Tavily results are tagged before being shown to the AI:
+
+- `[CREDIBLE]` — domain is on TruthLens's credibility list (Reuters, AP, BBC, Nature, CDC, WHO, Snopes, FactCheck.org, NEJM, Wikipedia, Britannica, etc.)
+- `[UNVERIFIED SOURCE]` — everything else
+
+The AI is instructed: a claim confirmed only by an unverified source → `unverified`. A claim contradicted by a credible source → `gas` even if a low-quality source agrees. No evidence at all → `unverified`, enforced in code after the AI responds.
+
+---
 
 ## Troubleshooting
 
 | Problem | What to check |
-| --- | --- |
-| The Fact Check button is missing | Refresh the YouTube page; YouTube frequently changes its page markup. |
-| No transcript is available | The video may not have captions, or Supadata may not support it. |
-| The analysis fails immediately | Confirm both your Supadata key and selected AI-provider key are saved. |
-| Results seem stale | Click the refresh icon in the sidebar to bypass the one-hour cache. |
-| A provider request is blocked | Confirm that the provider's API domain is listed in `host_permissions` in `manifest.json`, then reload the extension. |
+|---|---|
+| Fact Check button missing | Refresh the YouTube page; YouTube changes its markup frequently |
+| No transcript available | The video may have no captions, or Supadata may not support it |
+| Analysis fails immediately | Confirm all three keys are saved in the popup |
+| Results seem outdated | Click the refresh icon to bypass the one-hour cache |
+| All claims return "unverified" | Your Tavily key may be missing or rate-limited — check the popup |
+| Provider request blocked | Confirm the provider's domain is in `host_permissions` in `manifest.json`, then reload the extension |
+
+---
 
 ## Development
 
-After editing files:
+After editing any file:
 
-1. Return to `chrome://extensions`.
-2. Click **Reload** on TruthLens.
-3. Refresh the YouTube tab.
+1. Go to `chrome://extensions`
+2. Click **Reload** on TruthLens
+3. Refresh the YouTube tab
 
-Chrome service-worker logs are available from the extension card's **service worker** link. Page integration issues can be inspected from the YouTube tab's DevTools console.
+Service worker logs: click the **service worker** link on the extension card.  
+Sidebar logs: open DevTools on the YouTube tab → Sources → find the sidebar iframe.
 
-## Privacy and Security
+---
 
-- API keys and cached results are stored in the local Chrome profile.
-- Transcripts are sent to Supadata and then to the AI provider you select.
-- Do not use the extension with confidential or sensitive video content unless you are comfortable with those services processing the transcript.
+## Privacy
+
+- API keys and cached results stay in your local Chrome profile (`chrome.storage.local`).
+- Video transcripts are sent to Supadata and then to your chosen AI provider.
+- Claim text is sent to Tavily for web search.
+- Do not use TruthLens with confidential or sensitive video content unless you are comfortable with those third-party services processing the transcript.
+
+---
 
 ## License
 
-No license has been specified yet. Add a license file before distributing or accepting external contributions.
+No license specified. Add one before distributing or accepting external contributions.
